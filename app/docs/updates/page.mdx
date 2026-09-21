@@ -1,0 +1,81 @@
+import { Callout } from 'nextra/components';
+
+# kernel/updates
+
+`useAppUpdateCheck()` — compares your app's installed version against the
+App Store / Play Store latest, and tells you whether an update is available.
+Pure TypeScript — no native code at all.
+
+```ts
+import { useAppUpdateCheck } from 'react-native-kernel/updates';
+```
+
+## `useAppUpdateCheck(options)`
+
+```tsx
+import { useAppUpdateCheck } from 'react-native-kernel/updates';
+import { Linking } from 'react-native';
+
+function UpdateBanner() {
+  const update = useAppUpdateCheck({
+    currentVersion: '1.4.0',
+    iosAppId: '123456789',
+    checkForUpdate: async () => {
+      const res = await fetch('https://api.example.com/latest-version');
+      return res.json(); // { latestVersion: string, storeUrl?: string }
+    },
+  });
+
+  if (!update.isUpdateAvailable) return null;
+
+  return (
+    <Banner
+      text={`Version ${update.latestVersion} is available`}
+      onPress={() => update.storeUrl && Linking.openURL(update.storeUrl)}
+    />
+  );
+}
+```
+
+### Options
+
+| Option | Type | Notes |
+| --- | --- | --- |
+| `currentVersion` | `string` | **Required.** Your app's installed version — this module doesn't read it for you |
+| `iosAppId` | `string` | Numeric App Store ID, used by the default iOS checker |
+| `androidPackageName` | `string` | Used only if you also pass your own `checkForUpdate` that needs it |
+| `checkForUpdate` | `() => Promise<{ latestVersion, storeUrl? }>` | Overrides the default checker entirely |
+| `checkOnMount` | `boolean` | Default `true` |
+
+<Callout type="warning">
+  **Android has no official public "latest version" API.** Unlike Apple's
+  iTunes lookup endpoint (which the default iOS checker uses), the Play
+  Store's latest version is only visible by scraping the store page's HTML —
+  unofficial, and it can break silently the moment Google changes the page.
+  This module **deliberately refuses to do that**. On Android, you must pass
+  `checkForUpdate` pointing at your own backend — omitting it throws a clear
+  error immediately, rather than silently shipping a scraper that could stop
+  working without warning.
+
+  Most production apps already have a version-gate endpoint for exactly this
+  reason, so in practice this is usually just wiring up something you
+  already have.
+</Callout>
+
+### Return value
+
+| Field | Type |
+| --- | --- |
+| `isChecking` | `boolean` |
+| `isUpdateAvailable` | `boolean` |
+| `currentVersion` | `string` |
+| `latestVersion` | `string \| null` |
+| `storeUrl` | `string \| null` |
+| `error` | `Error \| null` — captured, never thrown out of the hook |
+| `check()` | `() => Promise<void>` — manual re-trigger |
+
+Version comparison is numeric per-segment (`1.10.0 > 1.9.0`), not
+lexicographic, and tolerant of differing segment counts (`1.2` vs `1.2.0`)
+and non-numeric suffixes (`1.2.3-beta`).
+
+Next: [Roadmap](/docs/roadmap).

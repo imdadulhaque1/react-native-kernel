@@ -1,0 +1,110 @@
+import { Callout } from 'nextra/components';
+
+# kernel/permissions
+
+`usePermission()` — one API for checking and requesting camera, location,
+notifications, and storage permissions on both platforms, plus a
+`PermissionDeniedFallback` UI component for the "please grant this" state.
+
+```ts
+import { usePermission, PermissionDeniedFallback } from 'react-native-kernel/permissions';
+```
+
+## `usePermission(type, options?)`
+
+```tsx
+import { usePermission, PermissionDeniedFallback } from 'react-native-kernel/permissions';
+
+function CameraScreen() {
+  const camera = usePermission('camera');
+
+  if (!camera.isGranted) {
+    return (
+      <PermissionDeniedFallback
+        type="camera"
+        status={camera.status}
+        onRequest={camera.request}
+        onOpenSettings={camera.openSettings}
+      />
+    );
+  }
+
+  return <CameraView />;
+}
+```
+
+`type` is one of `'camera' | 'location' | 'notifications' | 'storage'`.
+
+### The four-state status model
+
+<Callout type="info">
+  Most permission libraries collapse "never asked" and "permanently denied"
+  into the same boolean. That's not enough to build correct UI with — you
+  need to know whether calling `request()` will show a dialog at all.
+</Callout>
+
+| Status | Meaning | What `request()` does |
+| --- | --- | --- |
+| `granted` | Usable right now | No-op, resolves `'granted'` immediately |
+| `denied` | Not granted yet | Shows the system dialog |
+| `blocked` | The OS won't prompt again | No dialog shown — only `openSettings()` helps from here |
+| `unavailable` | Not supported on this platform/device | — |
+
+<Callout type="warning">
+  **iOS shows its permission dialog at most once per app install.** The
+  moment the user answers it — even the first "Don't Allow" — there's no API
+  to show it again. So on iOS, a fresh denial is reported as `blocked`
+  immediately, not as a re-askable `denied`, because that's what's actually
+  true: calling `request()` again would silently do nothing.
+
+  **Android is murkier**: `shouldShowRequestPermissionRationale()` returns
+  `false` both for "never asked" and for "permanently denied ('Don't ask
+  again')" — they're indistinguishable from that API alone. This module
+  works around it by remembering, in a small local flag per permission type,
+  whether it has asked before — so it can tell the two states apart
+  correctly.
+</Callout>
+
+### Options
+
+| Option | Type | Default |
+| --- | --- | --- |
+| `checkOnMount` | `boolean` | `true` — checks status once when the hook mounts |
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `status` | `PermissionStatus` | |
+| `isGranted` | `boolean` | `status === 'granted'` |
+| `isChecking` | `boolean` | True during `check()`/`request()` |
+| `check()` | `() => Promise<PermissionStatus>` | Re-reads status — **never shows UI** |
+| `request()` | `() => Promise<PermissionStatus>` | Shows the system dialog, if one would appear |
+| `openSettings()` | `() => Promise<void>` | Opens the app's system settings screen |
+
+## `<PermissionDeniedFallback />`
+
+A small, unstyled-but-functional fallback card — renders `null` once
+`status` is `'granted'`.
+
+```tsx
+<PermissionDeniedFallback
+  type="location"
+  status={location.status}
+  onRequest={location.request}
+  onOpenSettings={location.openSettings}
+/>
+```
+
+Shows a "Grant Permission" button when `request()` would still show a
+dialog, or an "Open Settings" button once the status is `blocked`.
+
+## Permissions you need to declare
+
+This module never adds camera/location/notification/photo permissions to
+your app's manifest or Info.plist for you — unlike `kernel/system`'s network
+permissions, these are sensitive and opt-in per feature. See
+[Installation](/docs/installation#permissions-for-kernelpermissions-and-kernelmedia)
+for exactly what to add for each `type` you use.
+
+Next: [`kernel/media`](/docs/media).

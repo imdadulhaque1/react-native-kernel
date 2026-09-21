@@ -126,4 +126,50 @@ not want just for linking this package:
   throws.
 </Callout>
 
+## Permissions for `kernel/permissions` and `kernel/media`
+
+Camera, location, notifications, and photo-library access are **never**
+added to your manifest/Info.plist automatically — add only the entries for
+the `usePermission()` types and `useSmartScanner()` modes you actually use.
+
+<Tabs items={['iOS (Info.plist)', 'Android (AndroidManifest.xml)']}>
+  <Tabs.Tab>
+    ```xml
+    <key>NSCameraUsageDescription</key>
+    <string>Used to scan codes and documents.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Used to show content near you.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Used to access your photos.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Used to save photos.</string>
+    ```
+
+    Notifications need no Info.plist key — `usePermission('notifications')`
+    triggers the system prompt directly.
+  </Tabs.Tab>
+  <Tabs.Tab>
+    ```xml
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+      android:name="android.permission.READ_EXTERNAL_STORAGE"
+      android:maxSdkVersion="32" />
+    ```
+
+    `POST_NOTIFICATIONS` only matters on API 33+; below that, notifications
+    have no runtime permission at all. `READ_MEDIA_IMAGES` replaces
+    `READ_EXTERNAL_STORAGE` on API 33+, which is why both are declared with
+    the `maxSdkVersion` split above.
+  </Tabs.Tab>
+</Tabs>
+
+<Callout type="info">
+  `useSmartScanner()` only ever needs `CAMERA` — document scanning doesn't
+  need a separate storage permission, since Google's and Apple's scanner UIs
+  write pages to a location your app already has access to.
+</Callout>
+
 Next: [`kernel/system`](/docs/system).

@@ -1,0 +1,101 @@
+import { Callout } from 'nextra/components';
+
+# kernel/media
+
+`useSmartScanner()` — one API for QR codes, barcodes, and document scanning,
+backed by each platform's **real, ready-made scanner UI** instead of a
+custom camera view built from scratch.
+
+```ts
+import { useSmartScanner } from 'react-native-kernel/media';
+```
+
+<Callout type="warning">
+  This is the second (and last) deliberate native-dependency exception, and
+  it's Android-only: **Google Play Services** (ML Kit's `GmsBarcodeScanning`
+  and `GmsDocumentScanning`), for the same reason as `kernel/auth`'s
+  biometric prompt — there's no dependency-free way to get a polished,
+  ready-made scanner UI. iOS needs nothing extra: QR/barcode scanning is
+  built on `AVCaptureMetadataOutput` and document scanning on VisionKit's
+  `VNDocumentCameraViewController`, both system frameworks.
+</Callout>
+
+## `useSmartScanner()`
+
+```tsx
+import { useSmartScanner } from 'react-native-kernel/media';
+
+function ScanButton() {
+  const scanner = useSmartScanner();
+
+  const scanQr = async () => {
+    const result = await scanner.scan('qr');
+    if (result.cancelled) return;
+    console.log(result.format, result.value); // 'QR_CODE', 'https://...'
+  };
+
+  const scanDoc = async () => {
+    const result = await scanner.scan('document');
+    if (result.cancelled) return;
+    console.log(result.imageUris); // ['file:///.../page1.jpg']
+  };
+
+  return <Button title="Scan QR" onPress={scanQr} disabled={scanner.isScanning} />;
+}
+```
+
+`mode` is one of `'qr' | 'barcode' | 'document'`. Every call **presents a
+full-screen system UI** — Google's own code-scanner sheet on Android, or a
+live `AVCaptureMetadataOutput` view / `VNDocumentCameraViewController` on
+iOS — and resolves once the user finishes or cancels.
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `isScanning` | `boolean` | |
+| `error` | `Error \| null` | Set (and rethrown) when `scan()` rejects |
+| `isAvailable(mode)` | `(ScanMode) => Promise<boolean>` | Checks without showing any UI |
+| `scan(mode)` | `(ScanMode) => Promise<ScanResult>` | |
+
+### `ScanResult`
+
+```ts
+interface ScanResult {
+  cancelled: boolean;
+  value?: string;       // decoded text — 'qr' / 'barcode' only
+  format?: string;       // e.g. 'QR_CODE', 'EAN_13' — 'qr' / 'barcode' only
+  imageUris?: string[]; // file:// URIs, in page order — 'document' only
+}
+```
+
+A user backing out of the scanner resolves `{ cancelled: true }` — it never
+throws for a cancel, only for a real failure (e.g. no camera available).
+
+<Callout type="warning">
+  **No camera means `scan()` rejects, not crashes.** Both `qr`/`barcode` and
+  `document` modes check for camera hardware *before* presenting anything —
+  this matters concretely on the **iOS Simulator**, which has no camera:
+  `scan('qr')` there rejects with `no_camera` instead of presenting a
+  scanner view with nothing to show. (An earlier version of this module
+  didn't check first, and calling `dismissViewControllerAnimated:` from
+  inside `viewDidLoad` — before the presentation transition finished —
+  crashed the app outright.) Always wrap `scan()` in a try/catch, or check
+  `isAvailable(mode)` first.
+</Callout>
+
+## Android: first run may show a Play Services update
+
+The first time a device uses `GmsBarcodeScanning` or `GmsDocumentScanning`,
+Play Services may need to download or update its own module before showing
+the scanner — you'll briefly see Google's own "Downloading updates to
+Google Play services…" screen. This is normal, one-time, and outside this
+package's control; subsequent scans are instant.
+
+## Permissions
+
+See [Installation](/docs/installation#permissions-for-kernelpermissions-and-kernelmedia)
+for the camera (and, for document scanning, no extra permission beyond
+camera) entries each platform needs.
+
+Next: [`kernel/updates`](/docs/updates).

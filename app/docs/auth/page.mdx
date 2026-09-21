@@ -1,0 +1,111 @@
+import { Callout } from 'nextra/components';
+
+# kernel/auth
+
+`useBiometricAuth()` (Face ID / Touch ID / Fingerprint) and `useAuthToolkit()`
+— a full biometric-gated session on top of `kernel/storage`'s
+`SecureStorage`: token storage, auto-lock on inactivity, and re-lock after
+backgrounding.
+
+```ts
+import { useBiometricAuth, useAuthToolkit } from 'react-native-kernel/auth';
+```
+
+<Callout type="warning">
+  This is the one deliberate native-dependency exception on Android:
+  `androidx.biometric` — there's no dependency-free way to show Android's
+  system biometric prompt. iOS uses `LocalAuthentication`, a system
+  framework, so it adds nothing.
+</Callout>
+
+## `useBiometricAuth()`
+
+```tsx
+import { useBiometricAuth } from 'react-native-kernel/auth';
+
+function LoginScreen() {
+  const biometrics = useBiometricAuth();
+
+  if (!biometrics.isAvailable) {
+    return <PasswordLogin />;
+  }
+
+  return (
+    <Button
+      title={`Sign in with ${biometrics.biometryType}`}
+      onPress={async () => {
+        const success = await biometrics.authenticate('Sign in to your account');
+        if (success) goToApp();
+      }}
+    />
+  );
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `isAvailable` | `boolean` | Whether biometrics are enrolled and ready right now |
+| `biometryType` | `'faceId' \| 'touchId' \| 'biometric' \| 'none'` | Android can't distinguish fingerprint/face/iris — it always reports `'biometric'` when available |
+| `authenticate(reason?)` | `(string?) => Promise<boolean>` | Shows the system prompt. Resolves `false` on cancel or failure — **never throws** |
+
+## `useAuthToolkit(options?)`
+
+The batteries-included version: combines biometric unlock, `SecureStorage`
+token persistence, an inactivity timer, and background re-lock.
+
+```tsx
+import { useAuthToolkit } from 'react-native-kernel/auth';
+
+function App() {
+  const auth = useAuthToolkit({
+    inactivityTimeoutMs: 5 * 60_000,
+    backgroundLockAfterMs: 30_000,
+    onLogout: (reason) => analytics.track('logout', { reason }),
+  });
+
+  if (auth.isLocked) {
+    return (
+      <Button
+        title="Unlock"
+        onPress={() => auth.unlock('Unlock to continue')}
+        disabled={auth.isAuthenticating}
+      />
+    );
+  }
+
+  return <AuthenticatedApp onActivity={auth.resetInactivityTimer} onLogout={auth.logout} />;
+}
+```
+
+### Options
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `tokenKey` | `string` | `'kernel:auth-toolkit-token'` | `SecureStorage` key the token is stored under |
+| `inactivityTimeoutMs` | `number` | disabled | Auto-locks after this long without a `resetInactivityTimer()` call |
+| `backgroundLockAfterMs` | `number` | disabled | Re-locks if the app was backgrounded longer than this |
+| `startLocked` | `boolean` | `true` | See the note below |
+| `onLogout` | `(reason) => void` | — | `reason` is `'manual' \| 'inactivity' \| 'background-timeout'` |
+
+<Callout type="info">
+  **`startLocked` never strands the user.** If biometrics aren't available on
+  the device, the toolkit ignores `startLocked` and starts **unlocked** —
+  since there'd be no way to call `unlock()` successfully anyway. Locking is
+  only ever the starting state when there's a working way out of it.
+</Callout>
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `isLocked` | `boolean` | |
+| `isAuthenticating` | `boolean` | True while the system prompt is up |
+| `biometryType` | `BiometryType` | Passthrough from `useBiometricAuth()` |
+| `isBiometricAvailable` | `boolean` | Passthrough from `useBiometricAuth()` |
+| `unlock(reason?)` | `(string?) => Promise<boolean>` | Shows the prompt; sets `isLocked = false` on success |
+| `lock()` | `() => void` | Locks immediately, without clearing the stored token |
+| `resetInactivityTimer()` | `() => void` | Call on any user interaction |
+| `getToken()` / `setToken(v)` | | `SecureStorage` passthrough, scoped to `tokenKey` |
+| `logout()` | `() => Promise<void>` | Clears the token, locks, fires `onLogout('manual')` |
+
+Next: [`kernel/permissions`](/docs/permissions).

@@ -7,9 +7,9 @@ export const metadata = {
 # react-native-kernel
 
 <p className="rnk-tagline">
-  One well-typed, zero-dependency native toolkit for React Native — device
-  info, network state, an API client with retry &amp; token refresh, and
-  Keychain/Keystore-backed storage. Replace 8–10 small packages with one.
+  One well-typed native toolkit for React Native — device info, networking,
+  secure storage, biometric auth, permissions, QR/document scanning, and
+  update checks. Replace 8–10 small packages with one.
 </p>
 
 <div className="rnk-badges">
@@ -57,6 +57,121 @@ npm install react-native-kernel
     <code>useOfflineSync()</code> backed by a synchronous, MMKV-fast local KV
     store — with zero added native dependencies.
   </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/auth</h3>
+  <p>
+    <code>useBiometricAuth()</code> and <code>useAuthToolkit()</code> — Face
+    ID / Touch ID / Fingerprint, session locking, and auto-logout on
+    inactivity or backgrounding.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/permissions</h3>
+  <p>
+    <code>usePermission()</code> — one request/check API for camera,
+    location, notifications, and storage across both platforms, with a
+    built-in denied-state fallback UI.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/media</h3>
+  <p>
+    <code>useSmartScanner()</code> — QR code, barcode, and document
+    scanning, backed by each platform's real system scanner UI.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/updates</h3>
+  <p>
+    <code>useAppUpdateCheck()</code> — compares the installed version
+    against the App Store / Play Store latest.
+  </p>
+</div>
+
+</div>
+
+<div className="rnk-why">
+
+## Why react-native-kernel?
+
+<div className="rnk-why-grid">
+
+<div className="rnk-why-item">
+
+### One package, not ten
+
+A typical app reaches for `react-native-device-info`,
+`@react-native-community/netinfo`, `axios`, `react-native-keychain`,
+`react-native-mmkv`, `react-native-biometrics`, `react-native-permissions`,
+a barcode-scanner library, and an in-app-update library — nine separate
+version-compatibility matrices to track, nine sets of native code to keep
+in sync with your React Native upgrades. Kernel replaces all of it with one
+package, one version number, one native-linking step.
+
+</div>
+
+<div className="rnk-why-item">
+
+### Almost zero dependencies, and the two exceptions are explained
+
+No MMKV, no Axios, no NetInfo. Every feature is built directly on platform
+APIs. There are exactly **two** deliberate exceptions — `androidx.biometric`
+for the Android biometric prompt, and Google Play Services for the Android
+scanner UI — and both are called out explicitly in these docs rather than
+silently bundled.
+
+</div>
+
+<div className="rnk-why-item">
+
+### Real system UI, not a reimplementation
+
+The scanner in `kernel/media` is Google's own ML Kit scanner sheet on
+Android and Apple's own VisionKit document scanner on iOS — not a custom
+camera view this package maintains. Same idea for `kernel/auth`'s biometric
+prompt: it's the actual system dialog, so it already matches your users'
+device language, accessibility settings, and OS look.
+
+</div>
+
+<div className="rnk-why-item">
+
+### New Architecture from day one
+
+Every native module is a TurboModule written against Codegen — no legacy
+bridge fallback, no dual-implementation maintenance burden. That also means
+correctly synchronous calls where it matters (`kernel/storage`'s fast KV
+store) instead of everything being forced through the async bridge.
+
+</div>
+
+<div className="rnk-why-item">
+
+### Full TypeScript, honestly typed
+
+No `any` anywhere in the public API. Platform limitations are documented in
+the types themselves — e.g. `kernel/auth`'s `BiometryType` on Android is
+typed as `'biometric'`, not a fabricated `'touchId' | 'faceId'`, because
+Android's API genuinely can't tell those apart.
+
+</div>
+
+<div className="rnk-why-item">
+
+### Tree-shakeable by design
+
+`import ... from 'react-native-kernel/media'` never pulls in
+`kernel/network`'s code. Each module is its own subpath, so you only ship
+what you use — a small app using just `kernel/system` doesn't carry
+`kernel/media`'s scanner code in its bundle.
+
+</div>
+
 </div>
 
 </div>
