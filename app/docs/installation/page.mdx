@@ -10,28 +10,45 @@ import { Callout, Tabs } from 'nextra/components';
   package is written against Codegen only.
 </Callout>
 
-| | Minimum | Notes |
+| | Declared range (`peerDependencies`) | Notes |
 | --- | --- | --- |
-| React Native | **0.87.x** (developed &amp; verified against 0.87.1) | New Architecture must be enabled |
-| React | **19.x** (verified against 19.2.3) | |
-| Node.js | **≥ 22.11.0** | Matches the React Native 0.87 template's `engines` field |
-| iOS deployment target | **15.1** | The floor set by React Native 0.87's own podspec |
-| Xcode | **16.1+** | Required by React Native 0.87 to build the New Architecture |
+| React Native | **≥ 0.74.0** | Must have the **New Architecture enabled**. Developed &amp; verified end-to-end against 0.87.1 — see the note below. |
+| React | **≥ 18.2.0** | Nothing here uses React 19-only APIs; the actual floor is whatever your React Native version itself requires. Verified against 19.2.3. |
 | Android `minSdkVersion` | **24** (Android 7.0) | |
-| Android `compileSdkVersion` | **37** | |
-| Android `targetSdkVersion` | **36** | |
-| Kotlin | **2.2.0** | |
+| iOS deployment target | **15.1** | Set by the React Native version you build with, not by this package |
 
 react-native-kernel has **no runtime dependencies of its own** — every
 feature is built directly on platform APIs, so there's nothing else to
-install and no version-compatibility matrix to track beyond React Native
-itself.
+install and no third-party version-compatibility matrix to track.
+
+<Callout type="warning">
+  **Why 0.74, and not "any version with TypeScript support"?** TypeScript
+  availability isn't actually what gates this package — React Native has
+  supported TypeScript since 0.71's default template (and via community
+  templates well before that). The real constraint is the **New
+  Architecture**: every native module here is TurboModule/Codegen-only, with
+  no legacy-bridge implementation, and `useNetwork()`/`useBattery()`
+  specifically depend on Codegen's TurboModule **event emitters**
+  (`EventEmitter<T>`).
+
+  That feature has a rougher history than the New Architecture in general:
+  - Codegen had [confirmed bugs emitting events from TurboModules on RN
+    0.70.5](https://github.com/facebook/react-native/issues/35488) — this is
+    why the floor isn't lower than 0.74.
+  - TypeScript's own type definitions for Codegen's `EventEmitter`
+    ([PR #46484](https://github.com/facebook/react-native/commit/20b141508b30324d52080c255dd3fb318718d746))
+    landed September 2024, which lines up with the **0.76** release window,
+    not 0.74. Since this package's specs are TypeScript (not Flow), **0.74
+    and 0.75 are declared but unconfirmed** for the TS-side Codegen path
+    specifically — they may simply fail to generate the native spec for the
+    event-emitting methods. 0.76+ is on firmer ground.
+</Callout>
 
 <Callout type="info">
-  Older React Native versions with the New Architecture enabled (0.76+, where
-  it became the default) will likely work, since nothing here depends on
-  0.87-specific APIs — but only 0.87.1 has actually been built and run
-  end-to-end so far. Treat older versions as untested, not unsupported.
+  Only **React Native 0.87.1 / React 19.2.3** has actually been built and
+  run end-to-end (both iOS and Android) so far. Treat the range as: **0.76+
+  should work**, **0.74–0.75 is a declared-but-unverified guess**, and
+  **0.87.1 is the only version actually confirmed**.
 </Callout>
 
 ## Install

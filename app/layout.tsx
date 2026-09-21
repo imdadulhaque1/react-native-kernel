@@ -34,7 +34,7 @@ const banner = (
 const navbar = (
   <Navbar
     logo={<b>react-native-kernel</b>}
-    projectLink="https://github.com/your-org/react-native-kernel"
+    projectLink="https://github.com/imdadulhaque1/react-native-kernel"
   />
 );
 
@@ -58,7 +58,7 @@ export default async function RootLayout({
           banner={banner}
           navbar={navbar}
           pageMap={pageMap}
-          docsRepositoryBase="https://github.com/your-org/kernel-docs/tree/main"
+          docsRepositoryBase="https://github.com/imdadulhaque1/kernel-docs/tree/main"
           footer={footer}
           editLink="Edit this page on GitHub"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
