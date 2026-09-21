@@ -1,0 +1,144 @@
+import { Callout } from 'nextra/components';
+
+# kernel/system
+
+Device identity, live network state, and battery — three hooks, no config
+required.
+
+```ts
+import { useDeviceInfo, useNetwork, useBattery } from 'react-native-kernel/system';
+```
+
+## `useDeviceInfo()`
+
+```tsx
+import { useDeviceInfo } from 'react-native-kernel/system';
+
+function DeviceCard() {
+  const device = useDeviceInfo();
+
+  return (
+    <Text>
+      {device.brand} {device.model} — {device.systemName} {device.systemVersion}
+    </Text>
+  );
+}
+```
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `brand` | `string` | `"Apple"` on iOS, `Build.BRAND` on Android |
+| `model` | `string` | Hardware identifier (e.g. `iPhone16,1`) / `Build.MODEL` |
+| `systemName` | `string` | `"iOS"` / `"Android"` |
+| `systemVersion` | `string` | OS version string |
+| `isEmulator` | `boolean` | Simulator / emulator detection |
+| `screenWidth` / `screenHeight` | `number` | From `useWindowDimensions()`, so these re-render on rotation |
+| `vendorId` | `string` | See [identifiers](#device-identifiers) below |
+| `installationId` | `string` | See [identifiers](#device-identifiers) below |
+| `macAddress` | `string` | Always `"02:00:00:00:00:00"` — see note below |
+
+### Device identifiers
+
+There are three different "identify this device" fields, each with a
+different lifetime — pick the one that matches what you actually need:
+
+| Field | Resets when | Requires |
+| --- | --- | --- |
+| `vendorId` | All apps from the same vendor (iOS) / factory reset or app re-signing (Android) are removed | Nothing |
+| `installationId` | This app is uninstalled, or its local storage is cleared | Nothing (generated + persisted by `react-native-kernel/storage`'s fast KV store on first read) |
+| `macAddress` | Never changes, because it's a constant | N/A |
+
+- **`vendorId`** — iOS: `UIDevice.identifierForVendor`. Android:
+  `Settings.Secure.ANDROID_ID`. No permission needed on either platform.
+- **`installationId`** — a UUID this package generates itself on first
+  access and persists via `kernel/storage`'s synchronous KV store. Stable
+  across restarts and OS updates.
+
+<Callout type="warning">
+  **`macAddress` is not a usable identifier.** Both iOS (since iOS 7) and
+  Android (since Android 6 / API 23) hardcode this to
+  `"02:00:00:00:00:00"` for every third-party app — there is no public API
+  that returns the real hardware MAC address anymore. The field is included
+  for completeness only. Use `vendorId` or `installationId` instead.
+</Callout>
+
+## `useNetwork()`
+
+```tsx
+import { useNetwork } from 'react-native-kernel/system';
+
+function ConnectivityBanner() {
+  const network = useNetwork();
+
+  if (!network.isConnected) {
+    return <Banner>You're offline</Banner>;
+  }
+  return <Text>Connected via {network.type}</Text>;
+}
+```
+
+The hook re-renders whenever connectivity changes (WiFi ↔ cellular,
+connect/disconnect, etc.) — you don't need to subscribe to anything
+yourself.
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `isConnected` | `boolean` | |
+| `isInternetReachable` | `boolean` | Not just "has a network" — validated internet access |
+| `type` | `string` | One of `'wifi'`, `'cellular'`, `'ethernet'`, `'none'`, `'unknown'` |
+| `ipAddress` | `string` | Local IP on the active interface, `""` if unavailable |
+| `isWifiEnabled` | `boolean` | See platform note below |
+| `ssid` | `string` | `""` unless the required permission/entitlement is granted — see [Installation](/docs/installation#permissions-you-need-to-add-for-optional-features) |
+| `bssid` | `string` | Same requirements as `ssid` |
+| `carrier` | `string` | `""` when unavailable; see note below |
+
+<Callout type="info">
+  **`isWifiEnabled` means different things per platform.** Android reads the
+  real WiFi radio power state (`WifiManager.isWifiEnabled`). iOS has no
+  public API for radio state at all, so this field falls back to "is the
+  *current* connection over WiFi" instead — it is not a radio-power check on
+  iOS.
+</Callout>
+
+<Callout type="info">
+  **`ssid`/`bssid` resolve asynchronously on iOS.** Because the only
+  current, non-deprecated API for this
+  (`NEHotspotNetwork.fetchCurrentWithCompletionHandler:`) is callback-based,
+  the value starts as `""` and fills in via a follow-up update shortly after
+  a connection is made — the hook re-renders when it resolves, same as any
+  other network change. Android resolves these synchronously.
+</Callout>
+
+<Callout type="info">
+  **`carrier` is best-effort.** No special permission is required on either
+  platform, but Apple deprecated `CoreTelephony`'s carrier APIs in iOS 16
+  with no replacement, so recent iOS versions may return a generic
+  placeholder rather than the real carrier name. This field is genuinely
+  empty (not a bug) on devices/simulators with no cellular hardware.
+</Callout>
+
+## `useBattery()`
+
+```tsx
+import { useBattery } from 'react-native-kernel/system';
+
+function BatteryPill() {
+  const battery = useBattery();
+  const label = battery.level < 0 ? 'unknown' : `${Math.round(battery.level * 100)}%`;
+  return <Text>{label}{battery.isCharging ? ' ⚡' : ''}</Text>;
+}
+```
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `level` | `number` | `0`–`1`, or `-1` when the platform can't report it (e.g. iOS Simulator) |
+| `isCharging` | `boolean` | |
+| `isLowPowerMode` | `boolean` | Low Power Mode (iOS) / Battery Saver (Android) |
+
+Next: [`kernel/network`](/docs/network).

@@ -1,0 +1,112 @@
+import { Callout, Tabs } from 'nextra/components';
+
+# Installation & Requirements
+
+## Requirements
+
+<Callout type="warning">
+  react-native-kernel requires the **New Architecture** (TurboModules /
+  Fabric). There is no legacy-bridge fallback — every native module in this
+  package is written against Codegen only.
+</Callout>
+
+| | Minimum | Notes |
+| --- | --- | --- |
+| React Native | **0.87.x** (developed &amp; verified against 0.87.1) | New Architecture must be enabled |
+| React | **19.x** (verified against 19.2.3) | |
+| Node.js | **≥ 22.11.0** | Matches the React Native 0.87 template's `engines` field |
+| iOS deployment target | **15.1** | The floor set by React Native 0.87's own podspec |
+| Xcode | **16.1+** | Required by React Native 0.87 to build the New Architecture |
+| Android `minSdkVersion` | **24** (Android 7.0) | |
+| Android `compileSdkVersion` | **37** | |
+| Android `targetSdkVersion` | **36** | |
+| Kotlin | **2.2.0** | |
+
+react-native-kernel has **no runtime dependencies of its own** — every
+feature is built directly on platform APIs, so there's nothing else to
+install and no version-compatibility matrix to track beyond React Native
+itself.
+
+<Callout type="info">
+  Older React Native versions with the New Architecture enabled (0.76+, where
+  it became the default) will likely work, since nothing here depends on
+  0.87-specific APIs — but only 0.87.1 has actually been built and run
+  end-to-end so far. Treat older versions as untested, not unsupported.
+</Callout>
+
+## Install
+
+<Tabs items={['npm', 'yarn', 'pnpm']}>
+  <Tabs.Tab>
+    ```bash filename="Terminal"
+    npm install react-native-kernel
+    ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+    ```bash filename="Terminal"
+    yarn add react-native-kernel
+    ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+    ```bash filename="Terminal"
+    pnpm add react-native-kernel
+    ```
+  </Tabs.Tab>
+</Tabs>
+
+### iOS
+
+TurboModules autolink through CocoaPods, but you still need to install pods
+after adding the package:
+
+```bash filename="Terminal"
+cd ios && pod install
+```
+
+### Android
+
+No extra step — Gradle's autolinking picks up the module automatically the
+next time you build.
+
+### Enable the New Architecture
+
+If your app was scaffolded before the New Architecture became the default
+(React Native 0.76+), turn it on explicitly:
+
+```properties filename="android/gradle.properties"
+newArchEnabled=true
+```
+
+```ruby filename="ios/Podfile"
+# RCT_NEW_ARCH_ENABLED=1 pod install
+```
+
+## Permissions this package declares for you
+
+The native module ships its own `AndroidManifest.xml` with the permissions
+its *default* behavior needs. You don't add these yourself:
+
+- `INTERNET`
+- `ACCESS_NETWORK_STATE` — powers `useNetwork()`'s connectivity state
+- `ACCESS_WIFI_STATE` — a "normal" permission (no runtime prompt); powers
+  `isWifiEnabled` and is a prerequisite for `ssid`/`bssid`
+
+## Permissions *you* need to add for optional features
+
+A couple of fields are intentionally **not** turned on by default, because
+they'd force every consuming app into a permission or entitlement it might
+not want just for linking this package:
+
+<Callout type="info">
+  **WiFi SSID / BSSID** (`useNetwork().ssid` / `.bssid`) require:
+  - **Android (API 27+):** your app must declare and be granted
+    `ACCESS_FINE_LOCATION` at runtime.
+  - **iOS:** your app's target needs the **"Access WiFi Information"**
+    entitlement (Signing & Capabilities in Xcode), plus location
+    authorization.
+
+  Without these, `ssid`/`bssid` simply resolve to `""` — nothing crashes or
+  throws.
+</Callout>
+
+Next: [`kernel/system`](/docs/system).

@@ -1,0 +1,190 @@
+import { Callout } from 'nextra/components';
+
+# kernel/network
+
+`createApiClient()`, `InternetGuard`, and `useFileUpload()` — built on
+`fetch`/`XMLHttpRequest`, not `axios`, so there's no extra dependency.
+
+```ts
+import { createApiClient, InternetGuard, useFileUpload } from 'react-native-kernel/network';
+```
+
+## `createApiClient(config?)`
+
+```ts
+import { createApiClient } from 'react-native-kernel/network';
+
+const api = createApiClient({
+  baseURL: 'https://api.example.com',
+  getAccessToken: () => authStore.accessToken,
+  onRefreshToken: async () => {
+    const { accessToken, refreshToken } = await refreshOnServer(authStore.refreshToken);
+    authStore.setTokens(accessToken, refreshToken);
+    return { accessToken, refreshToken };
+  },
+  retry: { retries: 3, backoffMs: 300 },
+});
+
+const user = await api.get<User>('/me');
+await api.post('/orders', { itemId: 42 });
+```
+
+### Config
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `baseURL` | `string` | `''` | Prepended to every relative `path` |
+| `headers` | `Record<string, string>` | `{}` | Sent on every request |
+| `timeoutMs` | `number` | `15000` | Per-request, via `AbortController` |
+| `getAccessToken` | `() => string \| null \| Promise<...>` | — | Attached as `Authorization: Bearer <token>` |
+| `onRefreshToken` | `() => Promise<{ accessToken, refreshToken? }>` | — | See [token refresh](#token-refresh-single-flight) |
+| `retry` | `RetryConfig \| false` | see below | `false` disables retries entirely |
+| `offlineQueue` | `OfflineQueueConfig \| false` | enabled | See [offline queue](#offline-queue) |
+| `isOnline` | `() => boolean` | live network state from `kernel/system` | Override for testing or custom connectivity logic |
+
+### Token refresh (single-flight)
+
+When a request comes back `401` and `onRefreshToken` is configured, the
+client calls it once, retries the original request with the new token, and
+— critically — **concurrent requests that 401 at the same time all share
+that one refresh call** instead of each triggering their own:
+
+```ts
+// Both of these only trigger ONE call to onRefreshToken, not two.
+const [a, b] = await Promise.all([api.get('/a'), api.get('/b')]);
+```
+
+### Retry policy
+
+```ts
+interface RetryConfig {
+  retries?: number;       // default 2
+  backoffMs?: number;     // default 300
+  maxBackoffMs?: number;  // default 5000
+  retryOn?: (error: ApiError) => boolean; // default: network errors + 5xx
+}
+```
+
+Backoff is exponential: `min(backoffMs * 2^attempt, maxBackoffMs)`. Pass
+`retry: false` on the client, or `skipRetry: true` on a single request, to
+disable it.
+
+### Offline queue
+
+Non-`GET` requests fired while offline are queued in memory and
+automatically flushed the moment connectivity returns (via `kernel/system`'s
+network-change events):
+
+```ts
+const client = createApiClient({
+  offlineQueue: { methods: ['POST', 'PUT', 'PATCH', 'DELETE'] }, // default
+});
+
+client.getQueuedRequestCount(); // number currently waiting
+await client.flushQueue();      // manual flush, if you need it
+```
+
+<Callout type="warning">
+  The queue is **in-memory only** — queued requests do not survive an app
+  kill. This is a deliberate v1 scope decision, not a bug: persisting the
+  queue to disk would create a dependency from `kernel/network` on
+  `kernel/storage` that wasn't worth the complexity yet.
+</Callout>
+
+### Requests
+
+```ts
+api.request<T>(path, config?)
+api.get<T>(path, config?)
+api.post<T>(path, body?, config?)
+api.put<T>(path, body?, config?)
+api.patch<T>(path, body?, config?)
+api.delete<T>(path, config?)
+```
+
+Per-request `config` (`ApiRequestConfig`): `method`, `headers`, `params`
+(query string), `body`, `timeoutMs`, `skipAuth`, `skipRetry`,
+`skipOfflineQueue`, `signal`.
+
+### Errors
+
+Failed requests throw `ApiError`:
+
+```ts
+import { ApiError } from 'react-native-kernel/network';
+
+try {
+  await api.get('/thing');
+} catch (err) {
+  if (err instanceof ApiError) {
+    console.log(err.status, err.data, err.isNetworkError);
+  }
+}
+```
+
+## `InternetGuard`
+
+Wraps a request or mutation with a connectivity check:
+
+```ts
+import { InternetGuard } from 'react-native-kernel/network';
+
+await InternetGuard.run(() => api.post('/orders', order), {
+  onOffline: () => toast('No connection'),
+});
+
+// Or wait for reconnect instead of failing fast:
+await InternetGuard.run(() => api.post('/orders', order), {
+  queueWhenOffline: true,
+});
+```
+
+By default it fails fast with a `NoInternetError`. Pass
+`queueWhenOffline: true` to instead wait for the next reconnect event before
+running.
+
+## `useFileUpload(options)`
+
+```tsx
+import { useFileUpload } from 'react-native-kernel/network';
+
+function AvatarUploader() {
+  const upload = useFileUpload({ url: 'https://api.example.com/avatar' });
+
+  return (
+    <View>
+      <Button
+        title="Upload"
+        onPress={() => upload.start([{ uri: photo.uri, name: 'avatar.jpg', type: 'image/jpeg' }])}
+      />
+      {upload.status === 'uploading' && <Text>{upload.progress}%</Text>}
+      {upload.status === 'error' && <Button title="Retry" onPress={upload.retry} />}
+    </View>
+  );
+}
+```
+
+Built on `XMLHttpRequest` (not `fetch`) specifically because React Native's
+`fetch` doesn't expose upload progress events.
+
+| Field | Type |
+| --- | --- |
+| `status` | `'idle' \| 'uploading' \| 'paused' \| 'success' \| 'error'` |
+| `progress` | `number` (0–100, aggregated across files) |
+| `error` | `ApiError \| null` |
+| `response` | `unknown` (parsed JSON if the response is JSON, else text) |
+| `start(files)` | Begin uploading `FileUploadItem[]` |
+| `pause()` | Aborts the in-flight request |
+| `resume()` | Restarts the upload from the beginning |
+| `retry()` | Same as resume, resets the retry counter |
+| `cancel()` | Aborts and resets to `idle` |
+
+<Callout type="info">
+  **`resume()` restarts from scratch, not from a byte offset.** True
+  resumable upload needs a chunked protocol on your server, which this hook
+  doesn't assume. `pause()`/`resume()` here means "stop the request" /
+  "start a new one with the same files" — a real, if partial, tradeoff worth
+  knowing about before you rely on it for large files.
+</Callout>
+
+Next: [`kernel/storage`](/docs/storage).

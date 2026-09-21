@@ -1,0 +1,57 @@
+import { Callout } from 'nextra/components';
+
+# Roadmap
+
+<Callout type="warning">
+  Everything below this line is **planned, not implemented**. If you `import`
+  from any of these subpaths today, it won't resolve.
+</Callout>
+
+react-native-kernel is being built in phases. Shipped so far:
+
+- ✅ `kernel/system` — device info, network state, battery
+- ✅ `kernel/network` — API client, offline queue, file upload
+- ✅ `kernel/storage` — secure storage, offline sync
+
+### `kernel/auth` (next)
+
+- `useBiometricAuth()` — Face ID / Touch ID / Fingerprint
+- `AuthToolkit` — combines `SecureStorage` + a biometric read-gate +
+  auto-logout on inactivity
+
+This is also where `SecureStorage`'s optional biometric gate on read will
+land — it was deliberately left out of `kernel/storage` v1 to avoid
+duplicating native biometric code across two modules.
+
+### `kernel/ui`
+
+- `<OTPInput length={4 | 6} />` — auto-focus, paste support, Android SMS
+  autofill
+- `<Marquee>` — looping scrolling text
+- `<NetworkImage>` — disk + memory caching, blurhash placeholder, offline
+  fallback
+
+### `kernel/permissions`
+
+- `usePermission('camera' | 'location' | 'notifications' | 'storage')` — a
+  unified request/check API across iOS & Android, with a built-in
+  "permission denied" fallback UI.
+
+  This is also where SSID/BSSID access on Android
+  (`ACCESS_FINE_LOCATION`) will get a proper request flow — today
+  `kernel/system` only *checks* that permission, it never requests it.
+
+### `kernel/media`
+
+- `useSmartScanner()` — QR code, barcode, and document edge-detection in
+  one API
+
+### `kernel/updates`
+
+- `useAppUpdateCheck()` — compares the installed version against the
+  Play Store / App Store latest, with an optional forced-update UI
+
+## Have a request?
+
+Open an issue on [GitHub](https://github.com/your-org/react-native-kernel)
+if there's something here you need sooner rather than later.

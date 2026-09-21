@@ -1,0 +1,127 @@
+import { Callout } from 'nextra/components';
+
+# kernel/storage
+
+`SecureStorage` (Keychain / Android Keystore) and `useOfflineSync()`, both
+backed by native code with **zero added dependencies** — no MMKV, no
+AsyncStorage.
+
+```ts
+import { SecureStorage, useOfflineSync } from 'react-native-kernel/storage';
+```
+
+## How the fast store works
+
+`useOfflineSync` is backed by a small native TurboModule (`NSUserDefaults`
+on iOS, `SharedPreferences` on Android) exposed through **synchronous JSI
+calls** — no bridge serialization round trip. That's what makes it
+MMKV-fast without adding MMKV: the speed advantage MMKV has over
+`AsyncStorage` mostly comes from avoiding the async bridge, not from a
+custom on-disk format, and TurboModule sync methods get you that for free.
+
+<Callout type="warning">
+  If you're extending this package yourself: a TurboModule method only
+  becomes truly synchronous (`isBlockingSynchronousMethod = true` in
+  Codegen) when it has a **non-`void` return type**. A `void`-returning
+  "synchronous" write method silently gets dispatched to a background
+  thread instead — a write immediately followed by a read can then race.
+  Every write method here returns `boolean` specifically to force the
+  synchronous path.
+</Callout>
+
+## `SecureStorage`
+
+```ts
+import { SecureStorage } from 'react-native-kernel/storage';
+
+await SecureStorage.setItem('access-token', token);
+const token = await SecureStorage.getItem('access-token'); // string | null
+await SecureStorage.removeItem('access-token');
+await SecureStorage.clear();
+```
+
+Values are stored in the iOS Keychain / encrypted via Android Keystore
+(AES-GCM, backed by a hardware-derived key). The API is Promise-based even
+though the underlying calls are synchronous — deliberately, so that a
+future biometric read-gate (planned for `kernel/auth`) can slot in without
+a breaking API change.
+
+## `useOfflineSync(options)`
+
+Local-first read/write with background sync and conflict resolution:
+
+```tsx
+import { useOfflineSync } from 'react-native-kernel/storage';
+
+function ProfileScreen() {
+  const profile = useOfflineSync({
+    key: 'profile',
+    initialValue: { name: '', bio: '' },
+    pull: async () => {
+      const { data, updatedAt } = await api.get('/profile');
+      return { value: data, updatedAt };
+    },
+    push: async (record) => {
+      await api.put('/profile', record.value);
+    },
+  });
+
+  return (
+    <View>
+      <TextInput
+        value={profile.data.name}
+        onChangeText={(name) => profile.setData((prev) => ({ ...prev, name }))}
+      />
+      {profile.isSyncing && <ActivityIndicator />}
+      {profile.error && <Text>Sync failed: {profile.error.message}</Text>}
+    </View>
+  );
+}
+```
+
+### Options
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `key` | `string` | — | Storage key for this record |
+| `initialValue` | `T` | — | Used before anything's been read from disk or the server |
+| `pull` | `() => Promise<SyncedRecord<T>>` | — | Fetch the latest server-side record |
+| `push` | `(record) => Promise<void>` | — | Push the reconciled record back, when local wins |
+| `conflictResolution` | see below | `'last-write-wins'` | |
+| `syncOnMount` | `boolean` | `true` | Calls `sync()` once when the hook mounts |
+| `syncOnReconnect` | `boolean` | `true` | Calls `sync()` when connectivity is regained |
+
+`SyncedRecord<T>` is `{ value: T; updatedAt: number }` — every write is
+timestamped so conflict resolution has something to compare.
+
+### Conflict resolution
+
+```ts
+type ConflictResolution<T> =
+  | 'local'          // local always wins, pushes to server
+  | 'remote'         // remote always wins, overwrites local
+  | 'last-write-wins' // default — whichever updatedAt is newer wins
+  | ((local: SyncedRecord<T>, remote: SyncedRecord<T>) => T); // custom merge
+```
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `data` | `T` | Current value — always local-first, updates instantly on `setData` |
+| `setData` | `(value \| (prev) => value) => void` | Persists to the local KV store immediately, synchronously |
+| `isSyncing` | `boolean` | |
+| `isOnline` | `boolean` | Live from `kernel/system`'s `useNetwork()` |
+| `lastSyncedAt` | `number \| null` | |
+| `error` | `Error \| null` | Set when `pull`/`push` throws; never throws out of the hook itself |
+| `sync` | `() => Promise<void>` | Manual trigger, in addition to mount/reconnect |
+
+<Callout type="info">
+  `setData` only writes locally — it does not push to the server on its
+  own. Reconciliation (and the decision to push) happens in `sync()`,
+  triggered by mount, reconnect, or a manual call. This keeps writes fast
+  and predictable instead of firing a network request on every keystroke.
+</Callout>
+
+Next: [Roadmap](/docs/roadmap) for what's planned beyond these three
+modules.

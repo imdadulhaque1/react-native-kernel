@@ -1,0 +1,62 @@
+export const metadata = {
+  title: 'react-native-kernel — an all-in-one native toolkit for React Native',
+};
+
+<div className="rnk-hero">
+
+# react-native-kernel
+
+<p className="rnk-tagline">
+  One well-typed, zero-dependency native toolkit for React Native — device
+  info, network state, an API client with retry &amp; token refresh, and
+  Keychain/Keystore-backed storage. Replace 8–10 small packages with one.
+</p>
+
+<div className="rnk-badges">
+  <span className="rnk-badge">New Architecture only</span>
+  <span className="rnk-badge">Zero runtime dependencies</span>
+  <span className="rnk-badge">Full TypeScript</span>
+  <span className="rnk-badge">Tree-shakeable subpaths</span>
+</div>
+
+<div className="rnk-cta">
+  <a className="rnk-primary" href="/docs">Get started</a>
+  <a className="rnk-secondary" href="/docs/installation">Installation</a>
+</div>
+
+```bash filename="Terminal"
+npm install react-native-kernel
+```
+
+</div>
+
+<div className="rnk-features">
+
+<div className="rnk-feature">
+  <h3>kernel/system</h3>
+  <p>
+    <code>useDeviceInfo()</code>, <code>useNetwork()</code>,{' '}
+    <code>useBattery()</code> — device identity, live connectivity
+    (including IP, SSID, carrier), and battery state.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/network</h3>
+  <p>
+    <code>createApiClient()</code> with token refresh, retry with backoff, and
+    an offline queue. Plus <code>InternetGuard</code> and{' '}
+    <code>useFileUpload()</code>.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/storage</h3>
+  <p>
+    <code>SecureStorage</code> (Keychain / Keystore) and{' '}
+    <code>useOfflineSync()</code> backed by a synchronous, MMKV-fast local KV
+    store — with zero added native dependencies.
+  </p>
+</div>
+
+</div>

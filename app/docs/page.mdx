@@ -1,0 +1,54 @@
+import { Cards } from 'nextra/components';
+
+# Introduction
+
+**react-native-kernel** is an all-in-one, modular utility toolkit for React
+Native apps — similar in spirit to `react-native-paper`, but focused on
+**system utilities, networking, and storage** instead of UI components.
+
+The goal is to replace 8–10 separate small npm installs with one well-typed,
+tree-shakeable package.
+
+## Design principles
+
+- **Zero unnecessary dependencies.** The package has no runtime
+  dependencies of its own — every feature is built directly on platform
+  APIs (Keychain, Android Keystore, `fetch`, `NWPathMonitor`,
+  `ConnectivityManager`, …).
+- **Full TypeScript, no `any`.** Every hook, function, and native field is
+  typed, including honest platform-limitation notes in doc comments (e.g.
+  fields that are permission-gated or OS-restricted).
+- **Tree-shakeable subpaths.** `import ... from 'react-native-kernel/system'`
+  only bundles that module — importing `kernel/storage` never pulls in
+  `kernel/network`.
+- **New Architecture only.** Every native module is a TurboModule written
+  against Codegen from day one. There is no legacy bridge fallback.
+
+## Modules
+
+<Cards>
+  <Cards.Card title="kernel/system" href="/docs/system" />
+  <Cards.Card title="kernel/network" href="/docs/network" />
+  <Cards.Card title="kernel/storage" href="/docs/storage" />
+</Cards>
+
+Modules not listed above (`kernel/auth`, `kernel/ui`, `kernel/media`,
+`kernel/permissions`, `kernel/updates`) are planned but not implemented yet —
+see the [roadmap](/docs/roadmap).
+
+## Import style
+
+Every module is imported from its own subpath so unused modules aren't
+bundled:
+
+```ts
+import { useNetwork, useDeviceInfo } from 'react-native-kernel/system';
+import { createApiClient } from 'react-native-kernel/network';
+import { SecureStorage, useOfflineSync } from 'react-native-kernel/storage';
+```
+
+There is no root-level `react-native-kernel` import — importing the package
+root exports nothing on purpose, to keep subpath imports honest about what
+they pull in.
+
+Next: [Installation & Requirements](/docs/installation).
