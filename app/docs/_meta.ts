@@ -7,6 +7,7 @@ export default {
   auth: 'kernel/auth',
   permissions: 'kernel/permissions',
   media: 'kernel/media',
+  picker: 'kernel/picker',
   updates: 'kernel/updates',
   roadmap: 'Roadmap',
 };

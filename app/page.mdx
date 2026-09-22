@@ -8,8 +8,8 @@ export const metadata = {
 
 <p className="rnk-tagline">
   One well-typed native toolkit for React Native — device info, networking,
-  secure storage, biometric auth, permissions, QR/document scanning, and
-  update checks. Replace 8–10 small packages with one.
+  secure storage, biometric auth, permissions, QR/document scanning, file
+  picking, and update checks. Replace 8–10 small packages with one.
 </p>
 
 <div className="rnk-badges">
@@ -82,6 +82,15 @@ npm install react-native-kernel
   <p>
     <code>useSmartScanner()</code> — QR code, barcode, and document
     scanning, backed by each platform's real system scanner UI.
+  </p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/picker</h3>
+  <p>
+    <code>usePicker()</code> — pick any file type via each platform's real
+    system file picker, with URI, whole-file base64, or streamed base64
+    chunks for large files. Zero extra dependencies.
   </p>
 </div>
 

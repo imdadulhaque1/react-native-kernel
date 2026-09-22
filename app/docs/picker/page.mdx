@@ -1,0 +1,125 @@
+import { Callout } from 'nextra/components';
+
+# kernel/picker
+
+`usePicker()` — one API to pick **any file type** (PDF, video, image, text,
+anything) using each platform's real system file picker, with three ways to
+get the content back: a plain URI reference, whole-file base64, or streamed
+base64 chunks for large files.
+
+```ts
+import { usePicker } from 'react-native-kernel/picker';
+```
+
+<Callout type="info">
+  Unlike `kernel/media`'s scanner, this module needs **zero extra
+  dependencies on either platform** — `UIDocumentPickerViewController` on
+  iOS and the Storage Access Framework (`ACTION_OPEN_DOCUMENT`) on Android
+  are both built into the OS. No Play Services, no Info.plist keys, no
+  manifest permissions.
+</Callout>
+
+## `usePicker()`
+
+```tsx
+import { usePicker } from 'react-native-kernel/picker';
+
+function AttachmentButton() {
+  const picker = usePicker();
+
+  const attach = async () => {
+    const files = await picker.pick({ types: ['application/pdf', 'image/*'] });
+    if (files.length === 0) return; // user cancelled
+    console.log(files[0].name, files[0].mimeType, files[0].uri);
+  };
+
+  return <Button title="Attach file" onPress={attach} disabled={picker.isPicking} />;
+}
+```
+
+A cancelled pick resolves to `[]` — it never throws for a cancel, only for a
+real failure.
+
+### Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `isPicking` | `boolean` | |
+| `error` | `Error \| null` | Set (and rethrown) when `pick()` rejects |
+| `pick(options?)` | `(PickOptions?) => Promise<PickedFile[]>` | |
+
+## Three ways to get content back
+
+`options.encoding` picks the mode; `options.chunkSize` only matters when
+`encoding: 'base64'`.
+
+### `'uri'` (default) — just a reference
+
+```ts
+const files = await picker.pick(); // encoding defaults to 'uri'
+// files[0]: { uri, name, size, mimeType }
+```
+
+No file content is read at all — fastest, zero memory cost. Pass `uri`
+straight into `kernel/network`'s `useFileUpload()` or similar.
+
+### `'base64'` without `chunkSize` — whole file at once
+
+```ts
+const files = await picker.pick({ encoding: 'base64' });
+// files[0].base64 is the full file, base64-encoded
+```
+
+<Callout type="warning">
+  Rejects above **25MB** rather than risking an out-of-memory crash on the
+  device. Pass `chunkSize` for anything that could be larger — a photo is
+  usually fine here, a video almost never is.
+</Callout>
+
+### `'base64'` with `chunkSize` — streamed, for large files
+
+```ts
+const files = await picker.pick({
+  encoding: 'base64',
+  chunkSize: 65536, // 64KB per chunk
+  onChunk: (chunk) => {
+    // chunk: { uri, index, totalChunks, base64, isLast }
+    uploadPart(chunk.base64);
+  },
+});
+```
+
+Content is streamed via `onChunk` as it's read — **at most one chunk is
+ever held in memory at once**, on either platform. `pick()` itself still
+resolves with just the file metadata (no `base64` field) once every chunk
+has been delivered.
+
+<Callout type="info">
+  `totalChunks` is `-1` when the OS didn't report the file's size upfront —
+  rely on `chunk.isLast` as the authoritative "this was the final chunk"
+  signal instead of counting up to `totalChunks`.
+</Callout>
+
+## `PickOptions`
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `types` | `string[]` | any file | MIME filters, e.g. `['application/pdf', 'image/*']` |
+| `multiple` | `boolean` | `false` | Allow picking more than one file |
+| `encoding` | `'uri' \| 'base64'` | `'uri'` | |
+| `chunkSize` | `number` | — | Bytes per chunk; only used when `encoding: 'base64'` |
+| `onChunk` | `(chunk: PickChunk) => void` | — | Required when `chunkSize` is set |
+
+## `PickedFile`
+
+```ts
+interface PickedFile {
+  uri: string;
+  name: string;
+  size: number;   // bytes, or -1 if the OS didn't report one
+  mimeType: string;
+  base64?: string; // only in whole-file base64 mode
+}
+```
+
+Next: [Roadmap](/docs/roadmap).
