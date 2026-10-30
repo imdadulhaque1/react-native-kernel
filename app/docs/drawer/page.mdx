@@ -1,0 +1,465 @@
+import { Callout } from 'nextra/components';
+
+# kernel/drawer
+
+`<NavDrawer />` — a multi-layer navigation menu you drive with plain JSON.
+Pass a list of items, and any item that has `children` becomes a collapsible
+group with an arrow that flips when it opens. Each nesting layer gets its own
+background colour, the selected item gets an active colour, and every row can
+have a left icon.
+
+```ts
+import { NavDrawer } from 'react-native-kernel/drawer';
+```
+
+<Callout type="info">
+  Pure TypeScript — **no native code, no extra dependencies, no navigation
+  library**. The drawer never navigates for you: it tells you which item was
+  pressed (`route`, `params`, `action`) and you decide what to do.
+</Callout>
+
+<Callout type="warning">
+  Needs `react-native-kernel` **0.2.2 or newer**. Earlier versions do not
+  include `react-native-kernel/drawer`.
+</Callout>
+
+## Quick start
+
+```tsx
+import { NavDrawer } from 'react-native-kernel/drawer';
+
+const menu = [
+  { id: 1, label: 'Dashboard', icon: '🏠', route: 'Dashboard' },
+  {
+    id: 2,
+    label: 'Sales',
+    icon: '🛒',
+    children: [
+      { id: 21, label: 'Orders', route: 'Orders' },
+      {
+        id: 22,
+        label: 'Invoices',
+        children: [
+          { id: 221, label: 'Pending', route: 'InvoiceList', params: { status: 'pending' } },
+          { id: 222, label: 'Paid', route: 'InvoiceList', params: { status: 'paid' } },
+        ],
+      },
+    ],
+  },
+  { id: 3, label: 'Logout', icon: '🚪', action: 'logout' },
+];
+
+export function Sidebar() {
+  return (
+    <NavDrawer
+      items={menu}
+      defaultActiveId={1}
+      onItemPress={(item) => {
+        if (item.action === 'logout') signOut();
+        else if (item.route) navigation.navigate(item.route, item.params);
+      }}
+    />
+  );
+}
+```
+
+The same `menu` can come straight from your API (`fetch(...).then(r => r.json())`)
+— it is plain JSON.
+
+## Two ways to show it
+
+| Mode | How | Use it for |
+| --- | --- | --- |
+| **Inline** (default) | Leave `open` out. The menu fills its parent. | A sidebar in a tablet/web layout, or inside your own drawer from React Navigation |
+| **Slide-in panel** | Pass `open` (boolean) and `onClose`. | A classic hamburger-menu drawer with a dimmed backdrop |
+
+```tsx
+const [open, setOpen] = useState(false);
+
+<NavDrawer
+  items={menu}
+  open={open}
+  onClose={() => setOpen(false)}
+  topInset={insets.top}
+  onItemPress={go}
+/>
+```
+
+In panel mode the drawer closes itself after a leaf item is pressed
+(`closeOnSelect`, on by default), on a backdrop tap, and on the Android back
+button.
+
+## The JSON format
+
+### Nested (recommended)
+
+A node with a `children` array is a group. Nesting depth is unlimited.
+
+```json
+[
+  { "id": 1, "label": "Dashboard", "route": "Dashboard" },
+  {
+    "id": 2,
+    "label": "Sales",
+    "children": [
+      { "id": 21, "label": "Orders", "route": "Orders" }
+    ]
+  }
+]
+```
+
+### Flat (`parentId`)
+
+Convenient when the menu comes from a database table. As soon as any item has
+a `parentId`, the list is treated as flat and rebuilt into a tree for you.
+Use `parentId: null` for top-level items and `order` to sort siblings.
+
+```json
+[
+  { "id": 1,  "parentId": null, "order": 1, "label": "Dashboard", "route": "Dashboard" },
+  { "id": 2,  "parentId": null, "order": 2, "label": "Sales" },
+  { "id": 21, "parentId": 2,    "order": 1, "label": "Orders", "route": "Orders" }
+]
+```
+
+<Callout type="warning">
+  Bad data throws a clear error instead of rendering a broken menu: ids that
+  are not positive integers, **duplicate ids**, a `parentId` that points to a
+  missing item, or a `parentId` cycle.
+</Callout>
+
+## Item properties (`DrawerItem`)
+
+| Property | Type | Required | What it does |
+| --- | --- | --- | --- |
+| `id` | `number` | **yes** | Positive integer, unique across the **whole tree** (not just among siblings). Used to track the selected item and which groups are open. `0`, decimals and strings are rejected. |
+| `label` | `string` | **yes** | The text shown on the row. Truncated to one line. |
+| `icon` | `string` | no | Left icon. Looked up in `iconMap` first; if there is no match, the string is drawn as text — so an emoji (`"🏠"`) works with no setup. See [Left icons](#left-icons). |
+| `children` | `DrawerItem[]` | no | Makes this item a **group**. The row shows an arrow (▾ collapsed, ▴ expanded) and pressing it expands/collapses instead of selecting. You never set the arrow yourself — it appears because `children` exists. |
+| `route` | `string` | no | Name of the screen to open. The drawer never navigates; you read it in `onItemPress`. |
+| `params` | `object` | no | Extra data for the screen, handed to `onItemPress` untouched. Handy to reuse one screen with different filters (`{ "status": "paid" }`). Leave it out if the screen needs nothing. |
+| `action` | `string` | no | For rows that are not a screen, like `"logout"` or `"share"`. Also handed to `onItemPress`. Use `route` **or** `action`, not both. |
+| `hidden` | `boolean` | no | `true` removes the item and everything under it. A group whose children are all hidden disappears too. Defaults to shown. |
+| `disabled` | `boolean` | no | The row stays visible but dimmed and cannot be pressed. |
+| `parentId` | `number \| null` | no | **Flat format only.** Id of the parent item. |
+| `order` | `number` | no | **Flat format only.** Position among siblings, ascending. |
+
+<Callout type="info">
+  A group row only toggles. If you give a group a `route`, it is ignored —
+  put the link on a child instead. This keeps the behaviour obvious: arrow
+  rows open, other rows go somewhere.
+</Callout>
+
+## `<NavDrawer />` props
+
+### Data and selection
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `items` | `DrawerItem[]` | — | **Required.** The menu, nested or flat. |
+| `activeId` | `number` | — | Controlled selected item. Pass it when your router owns the current screen, and the highlight follows. |
+| `defaultActiveId` | `number` | — | Initial selection when you let the drawer track it. |
+| `defaultExpandedIds` | `number[]` | `[]` | Groups that start open. The parents of the active item are always opened automatically, so the selected row is never hidden. |
+| `allowMultiple` | `boolean` | `true` | How many groups can be open at once. See [Open one or many](#open-one-or-many-allowmultiple). |
+| `singleOpen` | `boolean` | `false` | Older spelling of `allowMultiple={false}`. Ignored when `allowMultiple` is set. |
+
+### Events
+
+| Prop | Type | When it fires |
+| --- | --- | --- |
+| `onItemPress` | `(item) => void` | A **leaf** (no children) is pressed. `item` includes `route`, `params`, `action`. |
+| `onToggle` | `(item, expanded) => void` | A group is opened or closed. `expanded` is the new state. |
+
+### Appearance
+
+| Prop | Type | What it does |
+| --- | --- | --- |
+| `theme` | `Partial<DrawerTheme>` | Colours and sizes, merged over the default dark theme. See [Theming](#theming). |
+| `iconMap` | `Record<string, icon>` | Maps `item.icon` strings to your own icons. |
+| `renderIcon` | `(item, { color, size, active }) => ReactNode` | Full control of the left icon. Return `undefined` to fall back to `iconMap`. |
+| `header` | `ReactNode` | Pinned above the list. Use [`<DrawerHeader />`](#top-user--app-info-drawerheader) or any node. |
+| `search` | `boolean \| { placeholder?, emptyText?, autoFocus? }` | **Optional, off by default.** Adds a search field above the list. See [Search](#search-search). |
+| `onSearch` | `(query: string) => void` | Called with the text in the search field every time it changes. |
+| `footerButton` | `DrawerFooterButton` | **Optional** button pinned to the bottom — usually Logout. Leave it out for no button. See [Bottom button](#bottom-button-footerbutton). |
+| `footer` | `ReactNode` | Free-form node under the button (a version line, links…). |
+| `bottomInset` | `number` | Space under the bottom content, e.g. `useSafeAreaInsets().bottom` so nothing sits under the home indicator. Default `0`. |
+| `style` | `ViewStyle` | Style for the menu container. |
+
+### Panel mode
+
+| Prop | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `open` | `boolean` | — | Passing it (true **or** false) switches to slide-in panel mode. |
+| `onClose` | `() => void` | — | Called on backdrop tap, Android back, and after a leaf press when `closeOnSelect` is on. Set your `open` state to `false` here. |
+| `closeOnSelect` | `boolean` | `true` | Close the panel after a leaf **or the bottom button** is pressed. |
+| `width` | `number` | `300` | Panel width in px. |
+| `topInset` | `number` | `0` | Space above the content — pass the status-bar / notch height (e.g. `useSafeAreaInsets().top`). |
+
+## Search (`search`)
+
+A search field for long menus. It is **off unless you ask for it**, so a short
+menu stays clean.
+
+```tsx
+<NavDrawer items={menu} />                 {/* no search field */}
+<NavDrawer items={menu} search />          {/* default search field */}
+<NavDrawer
+  items={menu}
+  search={{ placeholder: 'Find a page…', emptyText: 'No match', autoFocus: false }}
+  onSearch={(text) => console.log(text)}
+/>
+```
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `placeholder` | `string` | `"Search menu"` | Placeholder text, also the field's accessibility label. |
+| `emptyText` | `string` | `"No results"` | Shown when nothing matches. |
+| `autoFocus` | `boolean` | `false` | Focus the field (and raise the keyboard) as soon as the drawer shows. |
+
+How it matches:
+
+- **Label only, case-insensitive.** Typing `paid` finds *Paid*.
+- **Parents are kept.** A deep match shows the path to it — *Sales → Invoices →
+  Paid* — and those groups open by themselves while you search.
+- **A matching group keeps its children.** Typing `sales` shows *Sales* with
+  everything under it, so you can still browse the section. It stays closed
+  until you open it.
+- **Clearing the field** (the ✕ button or deleting the text) brings back the
+  full menu exactly as it was.
+- In panel mode the field is cleared every time the panel closes.
+- `onItemPress` / `onToggle` always receive the original item, never a
+  trimmed search copy.
+
+## Long menus and scrolling
+
+The list scrolls by itself when it is taller than the drawer; the header,
+search field, bottom button and footer stay pinned. The **scroll indicator is
+hidden**, so the menu looks the same however long it gets. Taps keep working
+while the keyboard is open.
+
+## Open one or many (`allowMultiple`)
+
+Controls what happens to the groups that are already open when you open
+another one.
+
+| `allowMultiple` | Behaviour |
+| --- | --- |
+| `true` (default) | Groups stay open until you close them yourself. You can have Sales and Inventory open at the same time. |
+| `false` | **One open group per level.** Opening a group automatically collapses the open groups next to it. |
+
+```tsx
+<NavDrawer items={menu} allowMultiple={false} />
+```
+
+With `allowMultiple={false}`:
+
+- **Only siblings close.** Opening *Inventory* closes *Sales*, but opening
+  *Sales → Reports* does not close *Sales* — its parents always stay open, so
+  deeper layers keep working.
+- **Opening state is tidied up for you.** If `defaultExpandedIds` lists two
+  groups on the same level, only one stays open (the one that holds the
+  active item, otherwise the later one). The same cleanup happens if you
+  switch the prop from `true` to `false` while the drawer is on screen.
+- **Selection stays visible.** When the active item changes from outside (a
+  deep link, say), its parents open and the siblings of those parents close.
+
+## Top: user / app info (`DrawerHeader`)
+
+`header` takes any node, so you can build whatever you like. For the common
+"who is signed in" block there is a ready-made component. It is pinned above
+the list (it does not scroll away) and takes its colours from the drawer
+theme.
+
+```tsx
+import { NavDrawer, DrawerHeader } from 'react-native-kernel/drawer';
+
+<NavDrawer
+  items={menu}
+  header={
+    <DrawerHeader
+      title="Imdadul Haque"
+      subtitle="imdadul@example.com"
+      avatarUri={user.photoUrl}     // omit to show the initials "IH"
+      badge="v1.0.0"                // app info pill
+      onPress={() => navigation.navigate('Profile')}
+    />
+  }
+/>
+```
+
+| Prop | Type | What it does |
+| --- | --- | --- |
+| `title` | `string` | **Required.** Name of the user or app. |
+| `subtitle` | `string` | Second line, e.g. an email or workspace name. |
+| `avatarUri` | `string` | Profile photo. Without it, the initials of `title` are drawn on the active colour. |
+| `avatarText` | `string` | Override the generated initials (`"JD"`). |
+| `badge` | `string` | Small pill next to the title — good for the app version or a plan name. |
+| `onPress` | `() => void` | Makes the whole block pressable (open a profile screen). Without it the block is plain, non-touchable. |
+| `style` | `ViewStyle` | Extra container style. |
+
+<Callout type="info">
+  Want a completely different header? Pass any node. Inside it,
+  `useDrawerTheme()` returns the resolved theme so your own header can still
+  match the drawer colours.
+</Callout>
+
+## Bottom button (`footerButton`)
+
+An **optional** button pinned to the bottom edge, outside the scrolling list,
+separated from it by a thin divider. It is meant for Logout, but works for
+anything (Sign in, Delete account, Help). **Leave the prop out and no button
+is rendered at all.**
+
+```tsx
+<NavDrawer
+  items={menu}
+  footerButton={{
+    label: 'Sign out',           // default: "Logout"
+    icon: 'logout',              // optional, same lookup as item icons
+    variant: 'danger',           // 'danger' (default) | 'primary' | 'plain'
+    onPress: () => signOut(),    // the action
+  }}
+  bottomInset={insets.bottom}
+/>
+```
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `label` | `string` | `"Logout"` | Button text. |
+| `icon` | `string` | none | Left icon. Resolved like `DrawerItem.icon`: `renderIcon`, then `iconMap`, then plain text / emoji. The icon takes the button's text colour. |
+| `variant` | `'danger' \| 'primary' \| 'plain'` | `'danger'` | `danger`: red tint (`dangerColor` on `dangerBackground`). `primary`: filled with `activeBackground`. `plain`: transparent, looks like a normal row. |
+| `disabled` | `boolean` | `false` | Dimmed and not pressable — e.g. while a sign-out request is running. |
+| `onPress` | `() => void` | — | **Required.** What happens on press. In panel mode the drawer then closes (see `closeOnSelect`). |
+
+<Callout type="info">
+  Show it only when it makes sense:
+  `footerButton={isSignedIn ? { label: 'Logout', onPress: signOut } : undefined}`.
+</Callout>
+
+## Layer colours, active colour and theming
+
+The look is controlled by `theme`. You only pass what you want to change; the
+rest comes from the default dark theme.
+
+```tsx
+<NavDrawer
+  items={menu}
+  theme={{
+    levelBackgrounds: ['#0F172A', '#1E293B', '#334155'], // layer 0, 1, 2
+    activeBackground: '#22C55E',
+    activeTextColor: '#052E16',
+  }}
+/>
+```
+
+| `theme` key | Type | Default (dark) | What it controls |
+| --- | --- | --- | --- |
+| `levelBackgrounds` | `string[]` | `#1E293B`, `#273449`, `#304059`, `#3A4C69` | **Background per layer.** Index `0` is the top level, `1` the first sub-menu, and so on. Layers deeper than the array reuse the last colour. Gradually lighter/darker shades make nesting easy to read. |
+| `activeBackground` | `string` | `#3B82F6` | Background of the selected item. |
+| `activeTextColor` | `string` | `#FFFFFF` | Text, icon and arrow colour on the selected item. |
+| `activeParentTextColor` | `string` | `#93C5FD` | Label colour of the groups that **contain** the selected item, so you can see which section you are in even when it is scrolled. |
+| `textColor` | `string` | `#E2E8F0` | Normal label colour. |
+| `iconColor` | `string` | `#CBD5E1` | Normal left-icon colour (passed to your icon as `color`). |
+| `chevronColor` | `string` | `#94A3B8` | Colour of the expand/collapse arrow. |
+| `disabledOpacity` | `number` | `0.4` | Opacity of `disabled` rows. |
+| `indent` | `number` | `16` | Extra left padding added **per layer**. |
+| `basePadding` | `number` | `16` | Left padding of a top-level row. |
+| `rowHeight` | `number` | `48` | Minimum row height. Keep it at 44 or above for comfortable touch targets. |
+| `fontSize` | `number` | `15` | Label size. |
+| `iconSize` | `number` | `20` | Size of the left icon slot (also passed to your icon as `size`). |
+| `searchBackground` | `string` | `rgba(148,163,184,0.16)` | Fill of the search field. |
+| `searchTextColor` | `string` | `#E2E8F0` | Text typed into the search field. |
+| `searchPlaceholderColor` | `string` | `#94A3B8` | Placeholder, search and clear icons. |
+| `dividerColor` | `string` | `rgba(148,163,184,0.25)` | The thin line under the header and above the bottom button. |
+| `dangerColor` | `string` | `#FCA5A5` | Text and icon colour of the `danger` bottom button. |
+| `dangerBackground` | `string` | `rgba(239,68,68,0.16)` | Fill of the `danger` bottom button. |
+| `background` | `string` | `#1E293B` | Background behind the header and footer, and the panel itself. |
+| `overlayColor` | `string` | `rgba(0,0,0,0.5)` | Dimmed backdrop in panel mode. |
+
+### Ready-made themes
+
+```tsx
+import { NavDrawer, lightDrawerTheme, darkDrawerTheme } from 'react-native-kernel/drawer';
+
+<NavDrawer items={menu} theme={lightDrawerTheme} />
+
+// start from a preset and tweak one thing
+<NavDrawer items={menu} theme={{ ...lightDrawerTheme, activeBackground: '#16A34A' }} />
+```
+
+## Left icons
+
+Every row can have an icon on the left. There are three ways to supply one;
+they are checked in this order.
+
+**1. `renderIcon` — full control**
+
+```tsx
+<NavDrawer
+  items={menu}
+  renderIcon={(item, { color, size, active }) =>
+    item.icon === 'home' ? <HomeIcon color={color} size={size} /> : undefined
+  }
+/>
+```
+
+**2. `iconMap` — map names from your JSON to icons**
+
+```tsx
+<NavDrawer
+  items={menu} // items use  "icon": "home"
+  iconMap={{
+    home: ({ color, size }) => <Icon name="home" color={color} size={size} />,
+    cart: <CartIcon />, // a plain element works too
+  }}
+/>
+```
+
+A function receives `{ color, size }` so your icon automatically follows the
+theme (and turns `activeTextColor` on the selected row). Works with any icon
+library — vector-icons, SVGs, images.
+
+**3. No setup — use text or an emoji**
+
+If `icon` has no match in `iconMap`, the string itself is drawn: `"icon": "🏠"`.
+
+Rows without an `icon` simply have no left icon.
+
+## Headless hook: `useDrawerTree()`
+
+Want your own look? Use the state logic without the UI.
+
+```tsx
+import { useDrawerTree } from 'react-native-kernel/drawer';
+
+const tree = useDrawerTree({ items: menu, defaultActiveId: 1, allowMultiple: false });
+```
+
+| Returned | Type | Notes |
+| --- | --- | --- |
+| `index.roots` | `DrawerItem[]` | Visible top-level items (hidden ones removed) |
+| `index.byId` | `Map<number, DrawerItem>` | Look up any item by id |
+| `index.ancestorsOf(id)` | `(id) => number[]` | Ids from the closest parent up to the top |
+| `activeId` | `number \| undefined` | Current selection |
+| `activeAncestorIds` | `Set<number>` | Groups containing the selection |
+| `expandedIds` / `isExpanded(id)` | `Set<number>` / function | Which groups are open |
+| `toggle(id)` | `(id) => boolean` | Open/close a group; returns the new state |
+| `select(id)` | `(id) => void` | Set the selected item |
+
+## Notes
+
+- **No third-party code.** The drawer is plain React Native — `react` and
+  `react-native` only. No gesture library, no animation library, no icon font,
+  no native module.
+- **Arrow animation.** The arrow rotates smoothly and the list animates when a
+  group opens or closes (`LayoutAnimation`). The arrow is drawn with views, so
+  no icon font is required.
+- **Accessibility.** Rows are buttons; groups report `expanded`, the selected
+  row reports `selected`, disabled rows report `disabled`.
+- **Selection is leaf-only.** Only items without children can be the active
+  item; groups show a lighter label when they contain it.
+- **Customisation, from simple to total.** `theme` for colours and sizes →
+  `header` / `footerButton` / `footer` slots for layout → `renderIcon` for
+  icons → `useDrawerTree()` to build the whole UI yourself.
+- **Keep ids stable.** Changing an item's `id` between renders resets its
+  open/closed state.

@@ -8,6 +8,7 @@ export default {
   permissions: 'kernel/permissions',
   media: 'kernel/media',
   picker: 'kernel/picker',
+  drawer: 'kernel/drawer',
   updates: 'kernel/updates',
   roadmap: 'Roadmap',
 };

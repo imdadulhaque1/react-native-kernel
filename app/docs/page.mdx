@@ -3,11 +3,34 @@ import { Cards } from 'nextra/components';
 # Introduction
 
 **react-native-kernel** is an all-in-one, modular utility toolkit for React
-Native apps — similar in spirit to `react-native-paper`, but focused on
-**system utilities, networking, and storage** instead of UI components.
+Native apps. It covers the plumbing almost every app needs — device and
+network state, an API client, secure storage, biometric auth, permissions,
+QR / document scanning, file picking, update checks and a JSON-driven
+navigation drawer — in one package.
 
 The goal is to replace 8–10 separate small npm installs with one well-typed,
 tree-shakeable package.
+
+## What makes it different
+
+| | react-native-kernel |
+| --- | --- |
+| **One install** | One package, one version number and one native-linking step cover nine modules. Upgrading React Native means checking one compatibility matrix, not nine. |
+| **No third-party JavaScript** | The package's `dependencies` is empty; `react` and `react-native` are its only peers. Nothing else ends up in your bundle or your audit report. |
+| **Built on the platform** | Features call the OS directly — Keychain and Keystore, `fetch`, `NWPathMonitor`, `ConnectivityManager`, VisionKit, the system file picker — instead of wrapping another library. |
+| **Real system UI** | The scanner, biometric prompt and file picker are the operating system's own screens, so they already match your users' language, accessibility settings and look. |
+| **Tree-shakeable subpaths** | `react-native-kernel/storage` never pulls in `react-native-kernel/network`. You only ship what you import. |
+| **New Architecture only** | Every native module is a TurboModule written against Codegen from the start. There is no legacy-bridge fallback to maintain. |
+| **Typed end to end** | Real `.d.ts` declarations ship in the package, so editors and `tsc` see every hook, option and result type — with honest notes where a platform limits what is possible (permission-gated or OS-locked fields). |
+| **Dependencies are disclosed** | The only external native code is on Android — `androidx.biometric` and Google Play Services scanners — and it is named in the docs, not hidden. |
+
+### Check it yourself
+
+```sh
+npm view react-native-kernel dependencies        # prints nothing: no runtime dependencies
+npm view react-native-kernel peerDependencies    # react and react-native only
+npm pack react-native-kernel --dry-run           # lists every file you would install
+```
 
 ## Design principles
 
@@ -34,6 +57,7 @@ tree-shakeable package.
   <Cards.Card title="kernel/permissions" href="/docs/permissions" />
   <Cards.Card title="kernel/media" href="/docs/media" />
   <Cards.Card title="kernel/picker" href="/docs/picker" />
+  <Cards.Card title="kernel/drawer" href="/docs/drawer" />
   <Cards.Card title="kernel/updates" href="/docs/updates" />
 </Cards>
 

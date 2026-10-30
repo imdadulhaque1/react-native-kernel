@@ -6,16 +6,12 @@ export const metadata = {
 
 # react-native-kernel
 
-<p className="rnk-tagline">
-  One well-typed native toolkit for React Native — device info, networking,
-  secure storage, biometric auth, permissions, QR/document scanning, file
-  picking, and update checks. Replace 8–10 small packages with one.
-</p>
+<p className="rnk-tagline">One well-typed native toolkit for React Native — device info, networking, secure storage, biometric auth, permissions, QR/document scanning, file picking, a JSON-driven navigation drawer, and update checks. Replace 8–10 small packages with one.</p>
 
 <div className="rnk-badges">
   <span className="rnk-badge">New Architecture only</span>
   <span className="rnk-badge">Zero runtime dependencies</span>
-  <span className="rnk-badge">Full TypeScript</span>
+  <span className="rnk-badge">TypeScript types included</span>
   <span className="rnk-badge">Tree-shakeable subpaths</span>
 </div>
 
@@ -34,72 +30,47 @@ npm install react-native-kernel
 
 <div className="rnk-feature">
   <h3>kernel/system</h3>
-  <p>
-    <code>useDeviceInfo()</code>, <code>useNetwork()</code>,{' '}
-    <code>useBattery()</code> — device identity, live connectivity
-    (including IP, SSID, carrier), and battery state.
-  </p>
+  <p><code>useDeviceInfo()</code>, <code>useNetwork()</code>,{' '} <code>useBattery()</code> — device identity, live connectivity (including IP, SSID, carrier), and battery state.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/network</h3>
-  <p>
-    <code>createApiClient()</code> with token refresh, retry with backoff, and
-    an offline queue. Plus <code>InternetGuard</code> and{' '}
-    <code>useFileUpload()</code>.
-  </p>
+  <p><code>createApiClient()</code> with token refresh, retry with backoff, and an offline queue. Plus <code>InternetGuard</code> and{' '} <code>useFileUpload()</code>.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/storage</h3>
-  <p>
-    <code>SecureStorage</code> (Keychain / Keystore) and{' '}
-    <code>useOfflineSync()</code> backed by a synchronous, MMKV-fast local KV
-    store — with zero added native dependencies.
-  </p>
+  <p><code>SecureStorage</code> (Keychain / Keystore) and{' '} <code>useOfflineSync()</code> backed by a synchronous native key-value store — with zero added native dependencies.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/auth</h3>
-  <p>
-    <code>useBiometricAuth()</code> and <code>useAuthToolkit()</code> — Face
-    ID / Touch ID / Fingerprint, session locking, and auto-logout on
-    inactivity or backgrounding.
-  </p>
+  <p><code>useBiometricAuth()</code> and <code>useAuthToolkit()</code> — Face ID / Touch ID / Fingerprint, session locking, and auto-logout on inactivity or backgrounding.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/permissions</h3>
-  <p>
-    <code>usePermission()</code> — one request/check API for camera,
-    location, notifications, and storage across both platforms, with a
-    built-in denied-state fallback UI.
-  </p>
+  <p><code>usePermission()</code> — one request/check API for camera, location, notifications, and storage across both platforms, with a built-in denied-state fallback UI.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/media</h3>
-  <p>
-    <code>useSmartScanner()</code> — QR code, barcode, and document
-    scanning, backed by each platform's real system scanner UI.
-  </p>
+  <p><code>useSmartScanner()</code> — QR code, barcode, and document scanning, backed by each platform's real system scanner UI.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/picker</h3>
-  <p>
-    <code>usePicker()</code> — pick any file type via each platform's real
-    system file picker, with URI, whole-file base64, or streamed base64
-    chunks for large files. Zero extra dependencies.
-  </p>
+  <p><code>usePicker()</code> — pick any file type via each platform's real system file picker, with URI, whole-file base64, or streamed base64 chunks for large files. Zero extra dependencies.</p>
+</div>
+
+<div className="rnk-feature">
+  <h3>kernel/drawer</h3>
+  <p><code>&lt;NavDrawer /&gt;</code> — a multi-layer navigation drawer driven by plain JSON: collapsible groups, per-layer colours, optional search, a pinned bottom Logout button and a user / app info header. Pure TypeScript, zero dependencies.</p>
 </div>
 
 <div className="rnk-feature">
   <h3>kernel/updates</h3>
-  <p>
-    <code>useAppUpdateCheck()</code> — compares the installed version
-    against the App Store / Play Store latest.
-  </p>
+  <p><code>useAppUpdateCheck()</code> — compares the installed version against the App Store / Play Store latest.</p>
 </div>
 
 </div>
@@ -114,13 +85,12 @@ npm install react-native-kernel
 
 ### One package, not ten
 
-A typical app reaches for `react-native-device-info`,
-`@react-native-community/netinfo`, `axios`, `react-native-keychain`,
-`react-native-mmkv`, `react-native-biometrics`, `react-native-permissions`,
-a barcode-scanner library, and an in-app-update library — nine separate
-version-compatibility matrices to track, nine sets of native code to keep
-in sync with your React Native upgrades. Kernel replaces all of it with one
-package, one version number, one native-linking step.
+A typical app pulls in a separate package for device info, another for
+network state, an HTTP client, secure storage, a fast key-value store,
+biometrics, permissions, a barcode scanner and an update checker — nine
+separate version-compatibility matrices to track, nine sets of native code
+to keep in sync with your React Native upgrades. Kernel replaces all of it
+with one package, one version number, one native-linking step.
 
 </div>
 
@@ -128,8 +98,9 @@ package, one version number, one native-linking step.
 
 ### Almost zero dependencies, and the two exceptions are explained
 
-No MMKV, no Axios, no NetInfo. Every feature is built directly on platform
-APIs. There are exactly **two** deliberate exceptions — `androidx.biometric`
+No key-value library, no HTTP client, no network-state library — the
+package's `dependencies` is empty, and every feature is built directly on
+platform APIs. There are exactly **two** deliberate exceptions — `androidx.biometric`
 for the Android biometric prompt, and Google Play Services for the Android
 scanner UI — and both are called out explicitly in these docs rather than
 silently bundled.

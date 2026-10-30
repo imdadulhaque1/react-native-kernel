@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components';
 # kernel/network
 
 `createApiClient()`, `InternetGuard`, and `useFileUpload()` — built on
-`fetch`/`XMLHttpRequest`, not `axios`, so there's no extra dependency.
+`fetch`/`XMLHttpRequest`, so there's no HTTP-client dependency to install.
 
 ```ts
 import { createApiClient, InternetGuard, useFileUpload } from 'react-native-kernel/network';

@@ -3,8 +3,8 @@ import { Callout } from 'nextra/components';
 # kernel/storage
 
 `SecureStorage` (Keychain / Android Keystore) and `useOfflineSync()`, both
-backed by native code with **zero added dependencies** — no MMKV, no
-AsyncStorage.
+backed by native code with **zero added dependencies** — no extra storage
+library to install or keep in sync.
 
 ```ts
 import { SecureStorage, useOfflineSync } from 'react-native-kernel/storage';
@@ -14,10 +14,10 @@ import { SecureStorage, useOfflineSync } from 'react-native-kernel/storage';
 
 `useOfflineSync` is backed by a small native TurboModule (`NSUserDefaults`
 on iOS, `SharedPreferences` on Android) exposed through **synchronous JSI
-calls** — no bridge serialization round trip. That's what makes it
-MMKV-fast without adding MMKV: the speed advantage MMKV has over
-`AsyncStorage` mostly comes from avoiding the async bridge, not from a
-custom on-disk format, and TurboModule sync methods get you that for free.
+calls** — no bridge serialization round trip. That's what makes it fast
+without adding a library: the speed of a local key-value store mostly comes
+from avoiding the async bridge, not from a custom on-disk format, and
+TurboModule sync methods get you that for free.
 
 <Callout type="warning">
   If you're extending this package yourself: a TurboModule method only

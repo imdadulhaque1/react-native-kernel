@@ -53,7 +53,8 @@ export default async function RootLayout({
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <Head />
-      <body>
+      {/* Browser extensions (Grammarly, ColorZilla…) add attributes to <body> before React hydrates. */}
+      <body suppressHydrationWarning>
         <Layout
           banner={banner}
           navbar={navbar}
